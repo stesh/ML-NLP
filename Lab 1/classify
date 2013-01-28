@@ -1,0 +1,25 @@
+#!/usr/bin/python
+
+from BeautifulSoup import BeautifulSoup
+
+ACQ = 'ACQ'
+NOTACQ = 'NOTACQ'
+
+acqwords = ['could', 'swedish', 'american', 'shares', 'express', 'gas',
+'chemlawn', 'shearson', 'wallenbergs', 'voting', 'tender', 'husky']
+
+def get_contents(text):
+    return BeautifulSoup(text).body.contents.pop()
+
+def classify(text):
+    contents = get_contents(text).lower().split(' ')
+        if any(w in text for w in acqwords):
+            return ACQ
+    else:
+        return NOTACQ
+    
+
+if __name__ == '__main__':
+    import sys
+    print classify(open(sys.argv[1]).read())
+  

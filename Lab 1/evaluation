@@ -1,0 +1,36 @@
+#!/usr/bin/python
+
+from __future__ import division
+
+results = {'test01': ('NOTACQ', False),
+'test02': ('NOTACQ', True),
+'test03': ('ACQ', False),
+'test04': ('NOTACQ', False),
+'test05': ('ACQ', False),
+'test06': ('NOTACQ', True),
+'test07': ('NOTACQ', False),
+'test08': ('ACQ', False),
+'test09': ('NOTACQ', True),
+'test10': ('ACQ', True),
+'test11': ('ACQ', True),
+'test12': ('NOTACQ', False),
+'test13': ('ACQ', True),
+'test14': ('ACQ', True),
+'test15': ('NOTACQ', True),
+'test16': ('ACQ', False),
+'test17': ('NOTACQ', False),
+'test18': ('NOTACQ', False),
+'test19': ('NOTACQ', True)}
+
+tp = sum(1 for x in results if results[x][0] == 'ACQ' and results[x][1])
+fp = sum(1 for x in results if results[x][0] == 'ACQ' and not results[x][1])
+
+tn = sum(1 for x in results if results[x][0] == 'NOTACQ' and results[x][1])
+fn = sum(1 for x in results if results[x][0] == 'NOTACQ' and not results[x][1])
+
+precision = (tp)/(tp+fp)
+recall = (tp)/(tp+fn)
+
+
+print 'precision: ' + str(precision)
+print 'recall: ' + str(recall)
