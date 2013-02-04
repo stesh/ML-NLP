@@ -1,1 +1,1 @@
-javac -classpath .:sax.jar:xp.jar $* 
+javac -Xlint:deprecation  -classpath .:sax.jar:xp.jar $* 
