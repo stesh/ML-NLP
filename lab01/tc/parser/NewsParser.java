@@ -4,6 +4,7 @@
  * --Saturnino Luz, luzs@cs.tcd.ie
  **/ 
 package tc.parser;
+import tc.dstruct.*;
 import java.io.*;
 import java.util.Enumeration;
 import java.util.Arrays;
@@ -24,10 +25,10 @@ import org.xml.sax.InputSource;
  * selection) algorithm, classifier etc.
 
  * @author  Saturnino Luz &#60;luzs@acm.org&#62;
- * @version <font size=-1>$Id: BasicParser.java,v 1.4 2004/03/19 15:48:08 luzs Exp $</font>
+ * @version <font size=-1>$Id: NewsParser.java,v 1.4 2004/03/19 15:48:08 luzs Exp $</font>
  * @see  IndentationHandler
 */
-public class BasicParser
+public class NewsParser
 {
 
 
@@ -40,12 +41,10 @@ public class BasicParser
   /** 
    *  Set up the main user interface items
    */
-  public  BasicParser() {    
+  public  NewsParser() {    
      super();
   }
-  
-  
-  
+
   /** 
    * parseNews: Set up parser object, perform parsing of REUTERS-21578
    * documents, and print data onto STDOUT
@@ -60,25 +59,38 @@ public class BasicParser
 
   }
 
-  public static void  parseNews (String filename)
+  public static ParsedText parseNews (String filename)
     throws Exception 
   {
     FileInputStream in = new FileInputStream(filename);
     InputSource source = new InputSource(in);
     source.setEncoding("ISO-8859-1");
     parser.parse(source);
+
+    return handler.getParsedText();    
   }
 
 
   public static void main(String[] args) {
     try {
-      BasicParser f = new BasicParser();
+      NewsParser f = new NewsParser();
       setParser();
-      parseNews(args[0]);
+      ParsedText parsedText = parseNews(args[0]);
+    
+      for (Enumeration i = parsedText.elements() ; i.hasMoreElements() ;) {
+        ParsedNewsItem n = (ParsedNewsItem)i.nextElement();
+        System.out.println(n.getId());
+        
+        for (Enumeration j = n.getCategories() ; j.hasMoreElements() ;) {
+          System.out.println(j.nextElement());
+        }
+
+        System.out.println(n.getText());
+      }
     }
     catch (Exception e){
-      System.err.println("tc.parser.BasicParser: ");
-      System.err.println("Usage: BasicParser FILENAME");
+      System.err.println("tc.parser.NewsParser: ");
+      System.err.println("Usage: NewsParser FILENAME");
       //e.printStackTrace();
     } 
   }

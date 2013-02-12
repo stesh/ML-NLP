@@ -1,5 +1,6 @@
 package tc.parser;
 import tc.util.*;
+import tc.dstruct.*;
 import java.util.Vector;
 import java.util.Enumeration;
 import org.xml.sax.HandlerBase;
@@ -9,7 +10,7 @@ import org.xml.sax.ErrorHandler;
 import org.xml.sax.SAXParseException;
 
 /**
- * * 4ict2 lab 01: Implement BasicHandler 
+ * * 4ict2 lab 01: Implement ListTypeHandler 
  *
  * see : http://java.sun.com/webservices/docs/1.4/api/org/xml/sax/HandlerBase.html
  *  for HandlerBase API specification
@@ -29,11 +30,21 @@ import org.xml.sax.SAXParseException;
 */
 
 
-public class BasicHandler extends HandlerBase 
+public class ListTypeHandler extends HandlerBase 
 {
+  private ParsedText parsedText;
+
   private int error = 0;
-  private String previousName = "";
-  private String currentName = "";
+  private ParsedNewsItem currentNewsItem;
+  private boolean parsingTopics = false;
+  private boolean parsingText = false;
+  private String currentOpeningTag = "";
+  private String currentClosingTag = "";
+
+  public ListTypeHandler() {
+    this.parsedText = new ParsedText();
+  }
+  
     
   /*
     In order to do the exercise you will need to implement the following methods: 
@@ -41,14 +52,45 @@ public class BasicHandler extends HandlerBase
   */
   public void startElement (String name, AttributeList atts)
   {
-    previousName = currentName;
-    currentName = name;
-    //System.out.println("<" + name + ">");
+      currentOpeningTag = name;
+
+      // Start of a news item
+      if (currentOpeningTag.equals("REUTERS")) {
+        currentNewsItem = new ParsedNewsItem();
+
+        // Set the ID of the current news item
+        currentNewsItem.setId(atts.getValue("NEWID"));
+      }
+    
+      // Start of a block of topics
+      if (currentOpeningTag.equals("TOPICS")) {
+        parsingTopics = true;
+      }
+
+      // Start of the text content of a news item
+      if (currentOpeningTag.equals("TEXT")) {
+        parsingText = true;
+      }
   } 
   
   public void endElement (String name)
   {
-    //System.out.println("</" + name + ">");
+    currentClosingTag = name;
+    
+    // End of a news item
+    if (currentClosingTag.equals("REUTERS")) {
+      parsedText.addNewsItem(this.currentNewsItem);
+    }
+
+    // End of a block of topics
+    if (currentClosingTag.equals("TOPICS")) {
+      parsingTopics = false;
+    }
+
+    // End of the text content of a news item
+    if (currentClosingTag.equals("TEXT")) {
+      parsingText = false;
+    }
   }
   
   private void print(char ch[], int start, int length) {
@@ -60,10 +102,31 @@ public class BasicHandler extends HandlerBase
 
   public void characters (char ch[], int start, int length)
   {
-      if (currentName.equals("TITLE") || previousName.equals("TOPICS")) {
-        print(ch, start, length);
+
+    // Just parsed an individual topic
+    if (parsingTopics && currentOpeningTag.equals("D")) {
+      StringBuffer topic = new StringBuffer();
+      for (int i = start; i < start+length; i++) {
+        topic.append(ch[i]);
+      }  
+      currentNewsItem.addCategory(topic.toString());
+    }
+  
+    // Just parsed the text content of a document
+    if (parsingText) {
+      if (currentOpeningTag.equals("BODY")) {
+        StringBuffer text = new StringBuffer();
+        for (int i = start; i < start+length; i++) {
+          text.append(ch[i]);
+        }
+        currentNewsItem.setText(text.toString());
       }
+    }
   } 
+
+  public ParsedText getParsedText() {
+    return this.parsedText;
+  }
     
   /**
    * Print a message for ignorable whitespace.
