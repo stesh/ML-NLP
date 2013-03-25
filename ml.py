@@ -46,7 +46,7 @@ class Corpus(object):
     def getitem(self, category):
         return 
 
-
+ 
     def categories(self):
         return
 
@@ -74,6 +74,9 @@ class Document(object):
     def __init__(self, title=None, tokens=[], categories=[]):
         self.title = title
         self.id = id
+        if categories.__class__ != list:
+            categories = [categories]
+            
         self.categories = categories
         self.tokens = [t for t in tokens if len(t) > 0]
 
@@ -85,6 +88,12 @@ class Document(object):
 
     def __contains__(self, token):
         return token in self.tokens
+
+    def __len__(self):
+        return len(self.tokens)
+
+def get_stopwords(filename):
+    return open(filename).read().splitlines()
 
 def tokenize(text):
     # FIXME - poor man's tokenizer
@@ -99,25 +108,45 @@ def filter_by_df(corpus, stopwordlist, aggressiveness, target_category):
 
     return dict((t,f) for t,f in ranked.items() if f > aggressiveness)
 
-def nb_learn(training_set, C, stopwordlist, aggressiveness, method):
-    T = reduced_term_set(corpus, stopwordlist, aggressiveness, method, C)
+def nb_learn(Tr, C, stopwordlist, aggressiveness, method):
+    C = Category(C, Tr)
+    T = reduced_term_set(Tr, stopwordlist, aggressiveness, method, C)
     P = {}
 
     for c in C:
-        Trj = [t for t in training_set if t in c]
-        Pcj = len(Trj)/len(Tr)
-        Textj = sum([t for t in w], [])
+        Trj = [t for t in Tr if t in c]
+        P[c] = len(Trj)/len(Tr)
+        Textj = Document(sum([d.tokens for d in Trj], []), C)
         n = len(Textj)
         for word in T:
             nk = sum(1 for x in Textj if x == word)
             P[(word,c)] = (nk + 1)/(n + len(T))
 
+    print P
     return (lambda word,c: P[(word,c)])
 
+
 def main():
-    from sys import argv
-    training_set = Corpus('reut2-mini.xml')
-    probability_model = nb_learn(training_set, Category('acq'), stopwordlist, aggressiveness, method)
+    from sys import argv,exit
+
+    def usage():
+        print 'Usage: %s <stopword file> <aggressiveness> <corpus file> [<corpus file> ...]' % argv[0]
+
+    if len(argv) < 5:
+        usage()
+        exit(1)
+
+    stopword_file, aggressiveness = argv[1:3]
+    corpus_filenames = argv[3:]
+    
+    training_set = Corpus(corpus_filenames)
+    stopwordlist = get_stopwords(stopword_file)
+
+    aggressiveness = int(aggressiveness)
+
+    method = filter_by_df
+
+    probability_model = nb_learn(training_set, 'acq', stopwordlist, aggressiveness, method)
 
 if __name__ == '__main__':
     main()
