@@ -1,8 +1,12 @@
 #!/usr/bin/python
-
 from __future__ import division
-from BeautifulSoup import BeautifulStoneSoup
+
 import codecs
+from math import log
+from collections import defaultdict
+
+from BeautifulSoup import BeautifulStoneSoup
+
 
 class Corpus(object):
 
@@ -61,6 +65,9 @@ class Category(object):
 
     def __contains__(self, document):
         return self.name in document.categories
+    
+    def __repr__(self):
+        return "<%s '%s'>" % (self.__class__.__name__, self.name)
 
     def df(self, term):
         return sum(1 for doc in self if term in doc)
@@ -108,23 +115,50 @@ def filter_by_df(corpus, stopwordlist, aggressiveness, target_category):
 
     return dict((t,f) for t,f in ranked.items() if f > aggressiveness)
 
-def nb_learn(Tr, C, stopwordlist, aggressiveness, method):
-    C = Category(C, Tr)
-    T = reduced_term_set(Tr, stopwordlist, aggressiveness, method, C)
-    P = {}
+def nb_learn(Tr, categories, stopwordlist, aggressiveness, method):
+    P = defaultdict(int)
+    reduced_termsets = {}
 
-    for c in C:
+    for c in categories:
         Trj = [t for t in Tr if t in c]
         P[c] = len(Trj)/len(Tr)
-        Textj = Document(sum([d.tokens for d in Trj], []), C)
+        Textj = Document(sum([d.tokens for d in Trj], []), c)
         n = len(Textj)
+        T = reduced_term_set(Tr, stopwordlist, aggressiveness, method, c)
         for word in T:
             nk = sum(1 for x in Textj if x == word)
             P[(word,c)] = (nk + 1)/(n + len(T))
+        reduced_termsets[c] = T
 
-    print P
-    return (lambda word,c: P[(word,c)])
+    return ((lambda word,c: P[(word,c)]), reduced_termsets)
 
+def make_binary_classifier(probability_model, target_category, categories, reduced_termsets):
+    P = probability_model
+    T = reduced_termsets[target_category]
+    
+    def P_not(t, c):
+        return sum(P(t,ci) for ci in categories if ci != c)/(len(categories) - 1)
+
+    def csv(c,d):
+        
+        def frac(tkj, c):
+            return (P(tkj, c) * (1 - P_not(tkj, c)))/(P_not(tkj, c) * (1 - P(tkj, c)))
+        
+        return sum(frac(target_category, tkj) for tkj in T)
+
+    
+    return (lambda d: csv(target_category, d))
+
+def make_classifier(probability_model, categories, reduced_termsets):
+    binary_classifiers = {}
+
+    for c in categories:
+        binary_classifiers[c] = make_binary_classifier(probability_model, c, categories, reduced_termsets)
+
+    return (lambda d,c: (binary_classifiers[c])(d))
+
+def product(xs):
+    return reduce(lambda x,y: x*y, xs)
 
 def main():
     from sys import argv,exit
@@ -145,8 +179,11 @@ def main():
     aggressiveness = int(aggressiveness)
 
     method = filter_by_df
+    categories = [Category(c, training_set) for c in ['acq', 'notacq']]
 
-    probability_model = nb_learn(training_set, 'acq', stopwordlist, aggressiveness, method)
+    probability_model, reduced_termsets = nb_learn(training_set, categories, stopwordlist, aggressiveness, method)
+    
+    classifier = make_classifier(probability_model, categories, reduced_termsets)
 
 if __name__ == '__main__':
     main()
