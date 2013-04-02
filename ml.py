@@ -7,6 +7,8 @@ from collections import defaultdict
 
 from BeautifulSoup import BeautifulStoneSoup
 
+# How big a likelihood to give to unseen terms
+SMOOTHING_WEIGHT = 0.000000001
 
 class Corpus(object):
 
@@ -18,7 +20,10 @@ class Corpus(object):
         for text in parsed.findAll(name='reuters'):
             title = text.title.contents[0]
             body = text.body.contents[0]
-            topics = text.topics.contents
+            try:
+                topics = text.topics.contents
+            except:
+                topics = []
 
             tokens = tokenize(body)
             yield Document(title=title, tokens=tokens, categories=[t.contents[0] for t in topics])
@@ -70,6 +75,7 @@ class Category(object):
         return "<%s '%s'>" % (self.__class__.__name__, self.name)
 
     def df(self, term):
+        '''Document frequency'''
         return sum(1 for doc in self if term in doc)
 
     @property
@@ -107,6 +113,7 @@ def tokenize(text):
     return sum([line.split(' ') for line in text.splitlines()],[])
 
 def reduced_term_set(corpus, stopwordlist, aggressiveness, method, target_category):
+    # Only DR by DF is implemented here
     return method(corpus,stopwordlist, aggressiveness, target_category)
 
 def filter_by_df(corpus, stopwordlist, aggressiveness, target_category):
@@ -116,7 +123,7 @@ def filter_by_df(corpus, stopwordlist, aggressiveness, target_category):
     return dict((t,f) for t,f in ranked.items() if f > aggressiveness)
 
 def nb_learn(Tr, categories, stopwordlist, aggressiveness, method):
-    P = defaultdict(int)
+    P = defaultdict(lambda: SMOOTHING_WEIGHT)
     reduced_termsets = {}
 
     for c in categories:
@@ -155,10 +162,30 @@ def make_classifier(probability_model, categories, reduced_termsets):
     for c in categories:
         binary_classifiers[c] = make_binary_classifier(probability_model, c, categories, reduced_termsets)
 
-    return (lambda d,c: (binary_classifiers[c])(d))
+    def multi_classifier(d):
+        csvs = defaultdict(int)
+        for category, classifier in binary_classifiers.items():
+            csvs[category] = (classifier)(d)
+
+        return max(csvs, key=lambda c: csvs[c])
+        
+
+    return multi_classifier
 
 def product(xs):
     return reduce(lambda x,y: x*y, xs)
+
+def test(classifier):
+    t = '''test01.sgm test02.sgm test03.sgm test04.sgm test05.sgm
+    test06.sgm test07.sgm test08.sgm test09.sgm test10.sgm test11.sgm test12.sgm
+    test13.sgm test14.sgm test15.sgm test16.sgm test17.sgm test18.sgm
+    test19.sgm'''.split()
+    test_filenames = ['test-data/'+f for f in t]
+
+    test_set = Corpus(test_filenames)
+    results = [classifier(d) for d in test_set]
+    print results
+
 
 def main():
     from sys import argv,exit
@@ -185,5 +212,8 @@ def main():
     
     classifier = make_classifier(probability_model, categories, reduced_termsets)
 
+    test(classifier)
+
 if __name__ == '__main__':
     main()
+
